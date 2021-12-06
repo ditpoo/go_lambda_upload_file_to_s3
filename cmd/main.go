@@ -175,8 +175,14 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 
 	response := fmt.Sprintf(`{ "s3_url": "%s" }`, result.Location)
 
+	headers := make(map[string]string);
+
+	headers["Access-Control-Allow-Origin"] = "*";
+	headers["Access-Control-Allow-Credentials"] = "true";
+
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
+		Headers: headers,
 		Body: response,
 	}, nil
 }
