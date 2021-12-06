@@ -24,6 +24,22 @@ import (
 )
 
 func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	// handle pre-fligth request 
+	if req.HTTPMethod == "OPTIONS" {
+		headers := make(map[string]string);
+
+		headers["Access-Control-Allow-Origin"] = "*";
+		headers["Access-Control-Allow-Methods"] = "OPTIONS,POST";
+		headers["Access-Control-Allow-Headers"] = "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers";
+
+		// headers["Access-Control-Allow-Credentials"] = "true";
+
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusOK,
+			Headers: headers,
+			Body: "Success",
+		}, nil
+	}
 	// Parse the request.
 	data, err := parser.Parse(req)
 	
@@ -178,7 +194,9 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	headers := make(map[string]string);
 
 	headers["Access-Control-Allow-Origin"] = "*";
-	headers["Access-Control-Allow-Credentials"] = "true";
+	headers["Access-Control-Allow-Methods"] = "OPTIONS,POST";
+	headers["Access-Control-Allow-Headers"] = "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers";
+	// headers["Access-Control-Allow-Credentials"] = "true";
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
