@@ -24,13 +24,16 @@ import (
 )
 
 func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	// Adding header to make it work with localhost or another host and proxy request 
+	// to void cors issues
+	headers := make(map[string]string);
+
+	headers["Access-Control-Allow-Origin"] = "*";
+	headers["Access-Control-Allow-Methods"] = "OPTIONS,POST";
+	headers["Access-Control-Allow-Headers"] = "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Access-Control-Allow-Origin";
+
 	// handle pre-fligth request 
 	if req.HTTPMethod == "OPTIONS" {
-		headers := make(map[string]string);
-
-		headers["Access-Control-Allow-Origin"] = "*";
-		headers["Access-Control-Allow-Methods"] = "OPTIONS,POST";
-		headers["Access-Control-Allow-Headers"] = "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Access-Control-Allow-Origin";
 
 		// headers["Access-Control-Allow-Credentials"] = "true";
 
@@ -44,7 +47,11 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	data, err := parser.Parse(req)
 	
 	if err != nil {
-		return events.APIGatewayProxyResponse{}, err
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+			Headers: headers,
+			Body: "Failed to parse request",
+		}, err
 	}
 
 	// TODO: Get the file content type instead of using the lambda parser mdoule
@@ -55,6 +62,7 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	if !ok {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
+			Headers: headers,
 			Body: "missing file",
 		}, nil
 	}
@@ -76,6 +84,7 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
+			Headers: headers,
 			Body: "Failed to parse media type from header",
 		}, nil
 	}
@@ -159,6 +168,7 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	if err != nil {
         return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
+			Headers: headers,
 			Body: "Failed to connect to aws s3",
 		}, nil
     }
@@ -185,18 +195,13 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 
         return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
+			Headers: headers,
 			Body: "Failed to upload to s3",
 		}, nil
     }
 
 	response := fmt.Sprintf(`{ "s3_url": "%s" }`, result.Location)
 
-	headers := make(map[string]string);
-
-	headers["Access-Control-Allow-Origin"] = "*";
-	headers["Access-Control-Allow-Methods"] = "OPTIONS,POST";
-	headers["Access-Control-Allow-Headers"] = "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Access-Control-Allow-Origin";
-	// headers["Access-Control-Allow-Credentials"] = "true";
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
