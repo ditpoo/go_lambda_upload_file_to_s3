@@ -79,6 +79,28 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 		}
 	}
 
+	// TODO: Code to parse the params of header with content type
+	for k, v := range req.Headers {
+		if strings.ToLower(k) == "content-type" {
+			log.Println(k)
+			log.Println(v)
+
+			_, params, err := mime.ParseMediaType(req.Headers[k])
+
+			if err != nil {
+				log.Println(err.Error())
+				// return events.APIGatewayProxyResponse{
+				// 	StatusCode: http.StatusBadRequest,
+				// 	Headers: headers,
+				// 	Body: "Failed to parse media type from header",
+				// }, nil
+			} else {
+				log.Println("parsed boundary", params["boundary"])
+			}
+		}
+	}
+
+
 	_, params, err := mime.ParseMediaType(req.Headers["Content-Type"])
 
 	if err != nil {
