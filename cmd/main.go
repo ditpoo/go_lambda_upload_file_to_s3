@@ -82,19 +82,21 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	_, params, err := mime.ParseMediaType(req.Headers["Content-Type"])
 
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusBadRequest,
-			Headers: headers,
-			Body: "Failed to parse media type from header",
-		}, nil
+		log.Println(err.Error())
+		// return events.APIGatewayProxyResponse{
+		// 	StatusCode: http.StatusBadRequest,
+		// 	Headers: headers,
+		// 	Body: "Failed to parse media type from header",
+		// }, nil
+	} else {
+		log.Println("parsed boundary", params["boundary"])
 	}
 
-	log.Println(params["boundary"])
 	log.Println(boundary)
 
 	decodedBody, _ := base64.StdEncoding.DecodeString(req.Body)
 	
-	multipartReader := multipart.NewReader(strings.NewReader(string(decodedBody)), params["boundary"])
+	multipartReader := multipart.NewReader(strings.NewReader(string(decodedBody)), boundary)
 
 	var imageFile []byte;
 
