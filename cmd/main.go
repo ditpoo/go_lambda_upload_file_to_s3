@@ -79,7 +79,6 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 		}
 	}
 
-	// TODO: Code to parse the params of header with content type
 	for k, v := range req.Headers {
 		if strings.ToLower(k) == "content-type" {
 			log.Println(k)
@@ -89,11 +88,12 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 
 			if err != nil {
 				log.Println(err.Error())
-				// return events.APIGatewayProxyResponse{
-				// 	StatusCode: http.StatusBadRequest,
-				// 	Headers: headers,
-				// 	Body: "Failed to parse media type from header",
-				// }, nil
+
+				return events.APIGatewayProxyResponse{
+					StatusCode: http.StatusBadRequest,
+					Headers: headers,
+					Body: "Failed to parse media type from header",
+				}, nil
 			} else {
 				log.Println("parsed boundary", params["boundary"])
 			}
@@ -105,16 +105,15 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 
 	if err != nil {
 		log.Println(err.Error())
-		// return events.APIGatewayProxyResponse{
-		// 	StatusCode: http.StatusBadRequest,
-		// 	Headers: headers,
-		// 	Body: "Failed to parse media type from header",
-		// }, nil
+
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+			Headers: headers,
+			Body: "Failed to parse media type from header",
+		}, nil
 	} else {
 		log.Println("parsed boundary", params["boundary"])
 	}
-
-	log.Println(boundary)
 
 	decodedBody, _ := base64.StdEncoding.DecodeString(req.Body)
 	
@@ -137,10 +136,6 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	
 		fileBytes, err := ioutil.ReadAll(part)
 
-		// decodedImageFile, _ := base64.StdEncoding.DecodeString(string(fileBytes))
-
-		log.Println(http.DetectContentType(fileBytes))
-
 		detectedTypestring := strings.TrimSpace(http.DetectContentType(fileBytes))
 		decodedTypestring := strings.TrimSpace(file.ContentType)
 
@@ -157,7 +152,6 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	log.Printf("File Type: %s\n", file.Type)
 	log.Printf("Filename: %s\n", file.Filename)
 	log.Printf("Content Type: %s\n", file.ContentType)
-	// log.Printf("Content:\n%s", string(file.Content))
 
 	// Upload to s3
 	uuid := uuid.New()
@@ -165,24 +159,9 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	sourceFileName := strings.Split(file.ContentType, "/")
 	fileType := sourceFileName[0]
 	sourceFileFormatt := sourceFileName[1]
-	var fileName string
-
-
-	// if fileType != "image" && fileType != "video" {
-	// 	return events.APIGatewayProxyResponse{
-	// 		StatusCode: http.StatusBadRequest,
-	// 		Body: "Invalid File Formatt",
-	// 	}, nil
-	// }
-
-	// if (fileType == "image") {
-	// 	fileName = "image_file_" + uuid.String() + "." + sourceFileFormatt;
-	// } else {
-	// 	fileName = "video_file_" + uuid.String() + "." + sourceFileFormatt;
-	// }
 
 	// set the file name
-	fileName = fileType + "_" + uuid.String() + "." + sourceFileFormatt;
+	fileName := fileType + "_" + uuid.String() + "." + sourceFileFormatt;
 
 	// Create a aws s3 uploader
 	awsSession, err := session.NewSession(&aws.Config{
