@@ -24,33 +24,33 @@ import (
 )
 
 func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// Adding header to make it work with localhost or another host and proxy request 
+	// Adding header to make it work with localhost or another host and proxy request
 	// to void cors issues
-	headers := make(map[string]string);
+	headers := make(map[string]string)
 
-	headers["Access-Control-Allow-Origin"] = "*";
-	headers["Access-Control-Allow-Methods"] = "OPTIONS,POST";
-	headers["Access-Control-Allow-Headers"] = "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Access-Control-Allow-Origin";
+	headers["Access-Control-Allow-Origin"] = "*"
+	headers["Access-Control-Allow-Methods"] = "OPTIONS,POST"
+	headers["Access-Control-Allow-Headers"] = "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Access-Control-Allow-Origin"
 
-	// handle pre-fligth request 
+	// handle pre-fligth request
 	if req.HTTPMethod == "OPTIONS" {
 
 		// headers["Access-Control-Allow-Credentials"] = "true";
 
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusOK,
-			Headers: headers,
-			Body: "Success",
+			Headers:    headers,
+			Body:       "Success",
 		}, nil
 	}
 	// Parse the request.
 	data, err := parser.Parse(req)
-	
+
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Headers: headers,
-			Body: "Failed to parse request",
+			Headers:    headers,
+			Body:       "Failed to parse request",
 		}, err
 	}
 
@@ -62,14 +62,14 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	if !ok {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Headers: headers,
-			Body: "missing file",
+			Headers:    headers,
+			Body:       "missing file",
 		}, nil
 	}
 
 	// parse the body to get the image base64 string
 
-	var boundary string;
+	var boundary string
 
 	for k, v := range req.Headers {
 		if strings.ToLower(k) == "content-type" {
@@ -91,15 +91,14 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 
 				return events.APIGatewayProxyResponse{
 					StatusCode: http.StatusBadRequest,
-					Headers: headers,
-					Body: "Failed to parse media type from header",
+					Headers:    headers,
+					Body:       "Failed to parse media type from header",
 				}, nil
 			} else {
 				log.Println("parsed boundary", params["boundary"])
 			}
 		}
 	}
-
 
 	_, params, err := mime.ParseMediaType(req.Headers["Content-Type"])
 
@@ -108,32 +107,32 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Headers: headers,
-			Body: "Failed to parse media type from header",
+			Headers:    headers,
+			Body:       "Failed to parse media type from header",
 		}, nil
 	} else {
 		log.Println("parsed boundary", params["boundary"])
 	}
 
 	decodedBody, _ := base64.StdEncoding.DecodeString(req.Body)
-	
+
 	multipartReader := multipart.NewReader(strings.NewReader(string(decodedBody)), boundary)
 
-	var imageFile []byte;
+	var imageFile []byte
 
 	for {
-		part, err := multipartReader.NextPart();
+		part, err := multipartReader.NextPart()
 
 		if err == io.EOF {
 			break
 		}
-		
+
 		if err != nil {
 			break
 		}
-		
+
 		defer part.Close()
-	
+
 		fileBytes, err := ioutil.ReadAll(part)
 
 		detectedTypestring := strings.TrimSpace(http.DetectContentType(fileBytes))
@@ -141,11 +140,11 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 
 		if detectedTypestring == decodedTypestring {
 			fmt.Println("image file type")
-			imageFile = fileBytes;
+			imageFile = fileBytes
 		}
 
 		if err != nil {
-			break;
+			break
 		}
 	}
 
@@ -161,61 +160,58 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	sourceFileFormatt := sourceFileName[1]
 
 	// set the file name
-	fileName := fileType + "_" + uuid.String() + "." + sourceFileFormatt;
+	fileName := fileType + "_" + uuid.String() + "." + sourceFileFormatt
 
 	// Create a aws s3 uploader
 	awsSession, err := session.NewSession(&aws.Config{
-        Region: aws.String("us-east-1")},
-    )
+		Region: aws.String("us-east-1")},
+	)
 
 	if err != nil {
-        return events.APIGatewayProxyResponse{
+		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Headers: headers,
-			Body: "Failed to connect to aws s3",
+			Headers:    headers,
+			Body:       "Failed to connect to aws s3",
 		}, nil
-    }
+	}
 
 	s3Uploader := s3manager.NewUploader(awsSession)
 
 	// Create a io.ReadSeeker buffer of file to upload
 
-    detectedfileType := http.DetectContentType(file.Content)
+	detectedfileType := http.DetectContentType(file.Content)
 
 	log.Printf("Detected file type is %s", detectedfileType)
 
 	result, err := s3Uploader.Upload(&s3manager.UploadInput{
-        Bucket: aws.String(bucket),
-		// remove carriage return character from string 
-        Key: aws.String(strings.TrimSpace(fileName)),
-        Body: bytes.NewReader(imageFile),
-		ACL: aws.String("public-read"),
+		Bucket: aws.String(bucket),
+		// remove carriage return character from string
+		Key:  aws.String(strings.TrimSpace(fileName)),
+		Body: bytes.NewReader(imageFile),
+		ACL:  aws.String("public-read"),
 		// ContentType: aws.String(file.ContentType),
-    })
+	})
 
-    if err != nil {
+	if err != nil {
 		log.Printf("Upload Failed %s\n", err.Error())
 
-        return events.APIGatewayProxyResponse{
+		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
-			Headers: headers,
-			Body: "Failed to upload to s3",
+			Headers:    headers,
+			Body:       "Failed to upload to s3",
 		}, nil
-    }
+	}
 
 	response := fmt.Sprintf(`{ "s3_url": "%s" }`, result.Location)
 
-
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Headers: headers,
-		Body: response,
+		Headers:    headers,
+		Body:       response,
 	}, nil
 }
-
 
 func main() {
 	// Make the handler available for Remote Procedure Call by AWS Lambda
 	lambda.Start(handler)
 }
-
